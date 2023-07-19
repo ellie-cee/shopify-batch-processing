@@ -1,0 +1,7 @@
+paramiko
+ShopifyAPI
+requests
+python-csv
+python-dateutil
+xmlformatter
+

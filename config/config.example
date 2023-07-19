@@ -1,0 +1,10 @@
+{
+    "TMPDIR":"./tmp",
+    "SFTP_HOST":"",
+    "SFTP_USER":"",
+    "SFTP_KEY":"",
+    "SFTP_PATH":"",
+    "SHOPIFY_KEY":"",
+    "SHOPIFY_SECRET":"",
+    "SHOPIFY_SITE":""
+}

@@ -48,3 +48,10 @@ Thumbs.db
 *.mov
 *.wmv
 
+#venv
+venv/
+
+#misc
+config/config.json
+config/*.state
+tmp/
