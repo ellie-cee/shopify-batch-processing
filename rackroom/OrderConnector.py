@@ -162,7 +162,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
             xml+=f"""
             <order-entry>
                 <entrynumber>{order_entry}</entrynumber>
-                <product-name>{line_item.name}</product-name>
+                <product-name><![CDATA[{line_item.name}]]></product-name>
                 <product-code>{line_item.sku}</product-code>
                     <base-price>{variant.compare_at_price}</base-price>
                     <total-price>{variant.price}</total-price>
