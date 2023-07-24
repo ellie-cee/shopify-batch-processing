@@ -17,6 +17,7 @@ setup(
         'python-csv',
         'paramiko',
         'python-dateutil',
-        'xmlformatter'
+        'xmlformatter',
+        'python_graphql_client'
     ], 
 )

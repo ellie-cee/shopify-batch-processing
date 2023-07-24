@@ -7,7 +7,9 @@ import time
 import xmlformatter
 from datetime import datetime
 import rackroom
+import requests
 from dateutil.parser import parse as parsedate
+from python_graphql_client import GraphqlClient
 
 class OrderConnector(rackroom.base.ConnectorBase):
     def __init__(self):
@@ -20,13 +22,39 @@ class OrderConnector(rackroom.base.ConnectorBase):
                 self.config("SHOPIFY_SITE")
             )    
         )
+        self.graphql = GraphqlClient(f'https://{self.config("SHOPIFY_KEY")}:{self.config("SHOPIFY_SECRET")}@{self.config("SHOPIFY_SITE")}.myshopify.com/admin/api/2023-07/graphql.json')
         self.product_cache = {};
     def statefile(self):
         return "orders"
     def extract(self):
+        self.orders=[]
+        try:
+            result = self.graphql.execute(query=self.graphql_bulk_orders())
+            unfinished = True
+            while unfinished:
+                result = self.graphql.execute(query=self.graphql_query_orders())
+                if result["data"]["currentBulkOperation"]["status"]=="COMPLETED":
+                    url = result["data"]["currentBulkOperation"]["url"]
+                    if url is not None:
+                        ret = requests.get(url).content.decode()
+                        for line in ret.splitlines():
+                            
+                            self.orders.append(json.loads(line)["id"].split("/")[-1])
+                        unfinished = False
+                    else:
+                        self.exit("No orders. Exiting")
+                else:
+                    time.sleep(1)
+        except Exception as e:
+            self.fatal(f"Unable to fetch orders: {str(e)} ")
+         
+        self.info(f"Running {self.statefile()} extracted {len(self.orders)} orders")
+        return self
+    def extract_api(self):
         super().extract()
         self.orders = []
         proceed = True
+
         dt = parsedate(self.state.get("lastrun"))
         orders = shopify.Order.find(created_at_min=self.state.get("lastrun"))
         while proceed:
@@ -51,8 +79,8 @@ class OrderConnector(rackroom.base.ConnectorBase):
         """
         products = {}
         proceed = True
-        for order in self.orders:
-        
+        for order_id in self.orders:
+                order = shopify.Order.find(order_id) 
 
                 xml+=f"""
     <order>
@@ -108,6 +136,8 @@ class OrderConnector(rackroom.base.ConnectorBase):
         <voucher-entries/>
     </order>
             """
+                order.attributes["tags"] = ",".join(list(filter(lambda x: x!=self.config("EXPORT_TAG"),order.tags.split(","))))
+                order.save()
         xml+="""
 </orders>"""
         output = open(self.filename,"w")
@@ -271,7 +301,6 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     return product
                     
                 except:
-                    traceback.print_exc()
                     self.error(f"Unable to fetch product data for product #{id} ")
                     time.sleep(1)
             if not success:
@@ -300,3 +329,47 @@ class OrderConnector(rackroom.base.ConnectorBase):
             f"from_Shopify/{self.filename.split('/')[-1]}"
         )
         return self
+    
+    def graphql_bulk_orders(self):
+        return '''
+mutation {
+  bulkOperationRunQuery(
+   query: """
+    {
+      orders(query:"tag:EXPORT_ERP") {
+        edges {
+          node {
+            id
+          }
+        }
+      }
+    }
+    """
+  ) {
+    bulkOperation {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+'''
+    def graphql_query_orders(self):
+        return """
+query {
+  currentBulkOperation {
+    id
+    status
+    errorCode
+    createdAt
+    completedAt
+    objectCount
+    fileSize
+    url
+    partialDataUrl
+  }
+}
+"""

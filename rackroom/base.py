@@ -11,6 +11,7 @@ import time
 import xmlformatter
 from datetime import datetime
 from dateutil.parser import parse as parsedate
+from python_graphql_client import GraphqlClient
 
 class ConnectorBase:
     def __init__(self):
@@ -24,6 +25,7 @@ class ConnectorBase:
             self.warning("%s already running" % (sys.argv[0]))
             sys.exit(0)
         self.setstate("running")
+        
     def config(self,key):
         if os.getenv(key):
             return os.getenv(key)
@@ -73,6 +75,7 @@ class ConnectorBase:
         self.setstate("success",ts=datetime.now())
         sys.exit(0)
     def fatal(self,message):
+        traceback.print_exc()
         self.error(message)
         sys.exit(-1)
     def error(self,message):
