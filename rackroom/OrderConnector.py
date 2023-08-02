@@ -74,12 +74,13 @@ class OrderConnector(rackroom.base.ConnectorBase):
     def transform(self):
         super().transform()
         self.filename = self.tmpfile("Orders","xml")
-        xml = """<?xml version='1.0' encoding='UTF-8'?>
-<orders xmlns="http://www.rackroomshoes.com/xml/hybris/6.0/impex">
-        """
+        
         products = {}
         proceed = True
         for order_id in self.orders:
+                xml = """<?xml version='1.0' encoding='UTF-8'?>
+<orders xmlns="http://www.rackroomshoes.com/xml/hybris/6.0/impex">
+        """
                 order = shopify.Order.find(order_id) 
 
                 xml+=f"""
@@ -94,7 +95,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
         <subtotal>{order.subtotal_price}</subtotal>
         <total-price>{order.total_price}</total-price>
         <total-tax>{order.total_tax}</total-tax>
-        <tax-provider>CCH</tax-provider>
+        <tax-provider>Shopify</tax-provider>
         <tax-transaction-id></tax-transaction-id>
         <payment>
             <cost>{order.total_price}</cost>
@@ -111,7 +112,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
             <lang>en</lang>
             <shipping-address>
                 <phone>{order.shipping_address.phone}</phone>
-                <checked>false</checked>
+                <checked>true</checked>
                 <first-name>{order.shipping_address.first_name}</first-name>
                 <last-name>{order.shipping_address.last_name}</last-name>
                 <street1>{order.shipping_address.address1}</street1>
@@ -138,16 +139,13 @@ class OrderConnector(rackroom.base.ConnectorBase):
             """
                 order.attributes["tags"] = ",".join(list(filter(lambda x: x!=self.config("EXPORT_TAG"),order.tags.split(","))))
                 order.save()
-        xml+="""
+                xml+="""
 </orders>"""
-        output = open(self.filename,"w")
-        formatter = xmlformatter.Formatter(indent="1", indent_char="\t", encoding_output="ISO-8859-1", preserve=["literal"])
-        print(xml,file=output)
-        output.close()
-        try:
-            formatter.format_file(self.filename)
-        except Exception as e:
-            self.fatal(str(e))
+                output = open(f'tmp/Order.{order.id}.xml',"w")
+                #formatter = xmlformatter.Formatter(indent="1", indent_char="\t", encoding_output="ISO-8859-1", preserve=["literal"])
+                print(xml,file=output)
+                output.close()
+        
         return self
     
     def render_order_entries(self,order):
@@ -173,7 +171,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     <variant-size>{self.find_option("Size",product,variant)}</variant-size>
                     <variant-width>{self.find_option("Width",product,variant)}</variant-width>
                     <variant-color>{self.find_option("Color",product,variant)}</variant-color>
-                    <orderentry-pk>9155776020526</orderentry-pk>
+                    <orderentry-pk></orderentry-pk>
                     <tax>
                         <country-code>{order.shipping_address.country_code}</country-code>
                         <state-or-province>{order.shipping_address.province_code}</state-or-province>
@@ -256,7 +254,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                             <billing-address>
                                 <email>{order.customer.email}</email>
                                 <phone/>
-                                <checked>false</checked>
+                                <checked>true</checked>
                                 <first-name>{order.billing_address.first_name}</first-name>
                                 <last-name>{order.billing_address.last_name}</last-name>
                                 <street1>{order.billing_address.address1}</street1>
@@ -277,6 +275,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
             retries = retries -1
             try:
                 transactions = shopify.Transaction.find(order_id=id)
+                time.sleep(0.25)
                 success = True
                 return transactions
             except:
@@ -296,7 +295,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                 retries = retries -1
                 try:
                     product = shopify.Product.find(id)
-                    
+                    time.sleep(0.25)
                     self.product_cache[id] = product
                     return product
                     
