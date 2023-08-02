@@ -12,9 +12,11 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         super().__init()
 
         self.data = []
-        self.filename = self.tmpfile()
+        self.filename = self.tmpfile("Products-Inventory","csv")
 
     def statefile(self):
         return "inventory"
     
     def transform(self):
+
+        x = 0
