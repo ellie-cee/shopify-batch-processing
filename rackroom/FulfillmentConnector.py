@@ -4,6 +4,8 @@ import sys
 import json
 import time
 import shopify
+from python_graphql_client import GraphqlClient
+
 from datetime import datetime
 from dateutil.parser import parse as parsedate
 import rackroom
