@@ -24,6 +24,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
         )
         self.graphql = GraphqlClient(f'https://{self.config("SHOPIFY_KEY")}:{self.config("SHOPIFY_SECRET")}@{self.config("SHOPIFY_SITE")}.myshopify.com/admin/api/2023-07/graphql.json')
         self.product_cache = {};
+        self.files = []
     def statefile(self):
         return "orders"
     def extract(self):
@@ -73,7 +74,8 @@ class OrderConnector(rackroom.base.ConnectorBase):
         return self
     def transform(self):
         super().transform()
-        self.filename = self.tmpfile("Orders","xml")
+        
+        
         
         products = {}
         proceed = True
@@ -141,7 +143,9 @@ class OrderConnector(rackroom.base.ConnectorBase):
                 order.save()
                 xml+="""
 </orders>"""
-                output = open(f'tmp/Order.{order.id}.xml',"w")
+                filename = f'tmp/Order.{order.id}.xml'
+                output = open(filename,"w")
+                self.files.append(filename)
                 #formatter = xmlformatter.Formatter(indent="1", indent_char="\t", encoding_output="ISO-8859-1", preserve=["literal"])
                 print(xml,file=output)
                 output.close()
@@ -321,13 +325,14 @@ class OrderConnector(rackroom.base.ConnectorBase):
         except:
             
             return {}
-    def load(self):
-        super().load()
-        self.sftp_put(
-            self.filename,
-            f"from_Shopify/{self.filename.split('/')[-1]}"
-        )
-        return self
+   # def load(self):
+      #  super().load()
+        #for file in self.files:
+         #   self.sftp_put(
+           #     file,
+            #    f"from_Shopify/{file.split('/')[-1]}"
+          #  )
+        #return self
     
     def graphql_bulk_orders(self):
         return '''

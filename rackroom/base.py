@@ -9,6 +9,7 @@ import paramiko
 import traceback
 import time
 import xmlformatter
+import getopt
 from datetime import datetime
 from dateutil.parser import parse as parsedate
 from python_graphql_client import GraphqlClient
@@ -21,9 +22,9 @@ class ConnectorBase:
         except Exception as e:
             traceback.print_exc()
             self.error(str(e))
-        if (self.state['state']=="running"):
-            self.warning("%s already running" % (sys.argv[0]))
-            sys.exit(0)
+        #if (self.state['state']=="running"):
+          #  self.warning("%s already running" % (sys.argv[0]))
+          #  sys.exit(0)
         self.setstate("running")
         
     def config(self,key):
@@ -59,17 +60,8 @@ class ConnectorBase:
     def load(self):
         self.info(f"Running {self.statefile()}: Load Data")
         return self
-    def cleanup(self,purge=True):
+    def cleanup(self):
         self.info(f"Running {self.statefile()}: Cleanup")
-        try:
-            for file in os.scandir(os.getenv("TMPDIR")):
-                if file.is_file():
-                    if purge:
-                        os.remove(file.path)
-                lastrun = datetime.now()
-            self.setstate("success",ts=datetime.now())
-        except Exception as e:
-            self.error(str(e))
     def exit(self,message):
         self.info(message)
         self.setstate("success",ts=datetime.now())
@@ -111,6 +103,27 @@ class ConnectorBase:
               remote
           )
           self.info(f"Uploaded {remote} to SFTP")
+          client.close()
+        except Exception as e:
+            self.fatal(f"Unable to put {local} to remote: {str(e)}")
+    def sftp_delete(self,file):
+        try:
+          client = self.sftpclient()
+          
+          client.remove(file)
+          self.info(f"Removed {file} to SFTP")
+          client.close()
+        except Exception as e:
+            self.info(f"Unable to put {file} to remote: {str(e)}")
+    def sftp_get(self,remote,local):
+        try:
+          client = self.sftpclient()
+          client.get(
+              remote,
+              local
+          )
+          self.info(f"downloaded {remote} to SFTP")
+          client.close()
         except Exception as e:
             self.fatal(f"Unable to put {local} to remote: {str(e)}")
     def tmpfile(self,base,type):
