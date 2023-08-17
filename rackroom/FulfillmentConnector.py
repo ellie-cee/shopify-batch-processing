@@ -1,9 +1,12 @@
+import argparse
 import csv
 import os
 import sys
 import json
 import time
+import traceback
 import shopify
+import re
 from python_graphql_client import GraphqlClient
 
 from datetime import datetime
@@ -13,6 +16,9 @@ import rackroom
 class FulfillmentConnector(rackroom.base.ConnectorBase):
     def __init__(self):
         super().__init__()
+        ap = argparse.ArgumentParser()
+        ap.add_argument("-p","--path",help="Input Files Path")
+        self.opts = vars(ap.parse_args())
         shopify.ShopifyResource.set_site(
             "https://%s:%s@%s.myshopify.com/admin" % 
             (
@@ -21,24 +27,86 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                 self.config("SHOPIFY_SITE")
             )    
         )
-        self.graphql = GraphqlClient(f'https://{self.config("SHOPIFY_KEY")}:{self.config("SHOPIFY_SECRET")}@{self.config("SHOPIFY_SITE")}.myshopify.com/admin/api/2023-07/graphql.json')
+        self.filename = self.tmpfile("Order-Shipping","csv")
 
     def statefile(self):
         return "fulfillment"
     
+    def fields(self):
+        return [
+            "ID","Name","Command","Line: Type","Line: ID","Line: Quantity",
+            "Fulfillment: ID","Fulfillment: Status","Fulfillment: Created At",
+            "Fulfillment: Updated At","Fulfillment: Tracking Company","Fulfillment: Location",
+            "Fulfillment: Shipment Status","Fulfillment: Tracking Number",
+            "Fulfillment: Tracking URL","Fulfillment: Send Receipt",
+        ]
+    
     def extract(self):
         self.orders = {}
+        self.files = []
         try:
-            reader = csv.DictReader(open(sys.argv[1]),delimiter=",",quotechar='"')
-            for row in reader:
-                if row['ChannelOrderID'] in self.orders:
-                    self.orders[row['ChannelOrderID']].append(row)
-                else:
-                    self.orders[row['ChannelOrderID']] = [row]
+            for file in os.scandir(self.opts["path"]):
+                if file.is_file() and re.search("^OrderFulfillment.*",file.name):
+                    self.files.append(file)
+                    reader = csv.DictReader(open(file.path),quotechar='"',delimiter=',')
+
+                    for row in reader:
+                        if row['ChannelOrderID'] in self.orders:
+                            self.orders[row['ChannelOrderID']].append(row)
+                        else:
+                            self.orders[row['ChannelOrderID']] = [row]
+            if len(self.files)>0:
+                self.upc_map = self.get_matrixify_products()
+            else:
+                self.exit("Nothing to process!")
         except Exception as e:
             self.fatal(f"extract: {str(e)}")
-
+        return self
+    
     def transform(self):
+        outfile = open(self.filename,"w")
+        writer = csv.DictWriter(outfile,delimiter=',',quotechar='"',fieldnames=self.fields())
+        writer.writeheader()
         for order_id in self.orders.keys():
             fulfillments = self.orders[order_id]
             order = shopify.Order.find(order_id)
+            fulfillment_id = 1
+            for code in fulfillments:
+                try:
+                    line_item = list(
+                        filter(lambda x:x.sku==code['ChannelOrderItemID'],order.line_items)
+                    )[0]
+                    
+                    row ={
+                        "ID":order.id,
+                        "Name":order.name,
+                        "Command":"UPDATE",
+                        "Line: Type":"Fulfillment Line",
+                        "Line: ID":line_item.id,
+                        "Line: Quantity":code['Quantity'],
+                        "Fulfillment: ID":str(fulfillment_id),
+                        "Fulfillment: Status":"success",
+                        "Fulfillment: Shipment Status":"label_printed",
+                        "Fulfillment: Tracking Company":code['Carrier'],
+                        "Fulfillment: Tracking Number":code['ShippingTrackingNumber'],
+                        "Fulfillment: Send Receipt":"true"
+                    }
+                    writer.writerow(row)
+                    fulfillment_id=fulfillment_id+1
+                except:
+                    traceback.print_exc()
+                    self.info("skipping")
+        outfile.close()
+        return self
+    def load(self):
+        self.sftp_put(
+            self.filename,
+            "to_Shopify/Orders-Shipping.csv"
+        )
+        return self
+    def cleanup(self):
+        for file in self.files:
+            #os.remove(file)
+            x = 1
+        os.remove(self.filename)
+        return self

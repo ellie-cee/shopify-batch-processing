@@ -32,17 +32,10 @@ class InventoryConnector(rackroom.base.ConnectorBase):
                 for row in reader:
                     self.lines.append(row)
         if len(self.files)<1:
-            self.remote_cleanup()
+            
             self.exit("No files to process.")
         else:
-            self.sftp_get("from_Shopify/Products.csv","input/Products-Dump.csv")
-            pfile = open("input/Products-Dump.csv")
-            reader = csv.DictReader(pfile,delimiter=',',quotechar='"')
-            for row in reader:
-                
-                #omg matrixify HATECHU
-                self.upc_map[row['Variant Barcode']] = {'ID':row[reader.fieldnames[0]],'Variant ID':row['Variant ID']}
-            pfile.close()
+          self.upc_map = self.get_matrixify_products()
 
         return self
 
@@ -82,5 +75,4 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         for file in self.files:
             os.remove(file.path)
         os.remove(self.filename)
-    def remote_cleanup(self):
-        self.sftp_delete(f"to_Shopify/Product-Inventory.csv")
+    

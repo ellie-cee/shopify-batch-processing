@@ -125,7 +125,24 @@ class ConnectorBase:
           self.info(f"downloaded {remote} to SFTP")
           client.close()
         except Exception as e:
-            self.fatal(f"Unable to put {local} to remote: {str(e)}")
+            self.fatal(f"Unable to get {local} from remote: {str(e)}")
+            
+    def get_matrixify_products(self):
+        upc_map = {}
+        self.sftp_get("from_Shopify/Products.csv","input/Products-Dump.csv")
+        pfile = open("input/Products-Dump.csv")
+        reader = csv.DictReader(pfile,delimiter=',',quotechar='"')
+        for row in reader:
+                
+            #omg matrixify HATECHU
+            upc_map[row['Variant Barcode']] = {
+                'ID':row[reader.fieldnames[0]],
+                'Variant ID':row['Variant ID'],
+                'Variant SKU':row['Variant SKU']
+            }
+            pfile.close()
+            return upc_map
+        
     def tmpfile(self,base,type):
         return f"{self.config('TMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"
 
