@@ -18,6 +18,7 @@ setup(
         'paramiko',
         'python-dateutil',
         'xmlformatter',
-        'python_graphql_client'
+        'python_graphql_client',
+        'python-slugify'
     ], 
 )

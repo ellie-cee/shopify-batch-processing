@@ -8,6 +8,7 @@ import time
 import traceback
 import rackroom
 from datetime import datetime
+from slugify import slugify
 from dateutil.parser import parse as parsedate
 
 class ProductsConnector(rackroom.ConnectorBase):
@@ -26,7 +27,7 @@ class ProductsConnector(rackroom.ConnectorBase):
             "Tags Command","Tags","Published","Option1 Name","Option1 Value",
             "Option2 Name","Option2 Value","Variant SKU","Variant Grams","Variant Inventory Tracker",
             "Variant Inventory Policy","Variant Price","Variant Requires Shipping",
-            "Variant Taxable","Variant Barcode","Image Src",
+            "Variant Taxable","Variant Barcode [ID]","Image Src",
             "Status",
             "Metafield: custom.product_type [single_line_text_field]",
             "Metafield: custom.product_category [single_line_text_field]",
@@ -39,7 +40,13 @@ class ProductsConnector(rackroom.ConnectorBase):
         reader = csv.DictReader(infile,quotechar='"',delimiter=',')
         for row in reader:
             if pkey in row:
-                result[row[pkey]] = row
+                if row[pkey] in result:
+                    if isinstance(result[row[pkey]],list):
+                        result[row[pkey]].append(row)
+                    else:
+                        result[row[pkey]] = [result[row[pkey]],row]
+                else:
+                    result[row[pkey]] = row
         infile.close()
         return result
     def extract(self):
@@ -62,6 +69,8 @@ class ProductsConnector(rackroom.ConnectorBase):
                             self.sizes = self.read_file(file,"sku")
                         case "14":
                             self.prices = self.read_file(file,"sku")
+                        case "02":
+                            self.color_families = self.read_file(file,"id")
 
                     
                     
@@ -81,39 +90,41 @@ class ProductsConnector(rackroom.ConnectorBase):
             try:
                 product['base'] = self.base_products[product['baseProduct']]
                 product['brand'] = self.brands[product['base']['brandId']]
-               # product['size'] = self.sizes[product['sku']]
-                product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|"))) 
-              #  product['price'] = self.prices[product['sku']]
-                row = {
-                    "Handle":self.map_handle(product),
-                    "Command":"MERGE",
-                    "Title":product['base']['name'].title(),
-                    "Body HTML":"",
-                    "Vendor":product['brand']['name'].title(),
-                    "Type":product['base']['type'],
-                    "Tags Command":"MERGE",
-                    "Tags":",".join([]),
-                    "Published":"true",
-                    "Option1 Name":"Size",
-                    #"Option1 Value":product['size']['size'],
-                    "Option2 Name":"Color",
-                    "Option2 Value":" ".join(list(map(lambda x: x['name'].title(),product['colors']))),
-                    "Variant SKU":product['sku'],
-                    "Variant Grams":"",
-                    "Variant Inventory Tracker":"shopify",
-                    "Variant Inventory Policy":"deny",
-                   # "Variant Price":product['price']['price'],
-                    "Variant Requires Shipping":"true",
-                    "Variant Taxable":"true",
-                  #  "Variant Barcode":product['size']['upc'],
-                    "Image Src":self.map_images(product),
-                    "Status":"active",
-                    "Metafield: custom.product_type [single_line_text_field]":"",
-                    "Metafield: custom.product_category [single_line_text_field]":"",
-                    "Metafield: custom.product_subcategory [single_line_text_field]":"",
-                    "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
-                }
-                writer.writerow(row)
+                product['size'] = self.sizes[product['sku']]
+                product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
+                 
+                product['price'] = self.prices[product['sku']]
+                for size in product['size']:
+                    row = {
+                        "Handle":self.map_handle(product),
+                        "Command":"MERGE",
+                        "Title":product['base']['name'].title(),
+                        "Body HTML":"",
+                        "Vendor":product['brand']['name'].title(),
+                        "Type":product['base']['type'],
+                        "Tags Command":"MERGE",
+                        "Tags":",".join([]),
+                        "Published":"true",
+                        "Option1 Name":"Size",
+                        "Option1 Value":size['size'],
+                        "Option2 Name":"Color",
+                        "Option2 Value":"/".join(list(map(lambda x: x['name'].title(),product['colors']))),
+                        "Variant SKU":product['sku'],
+                        "Variant Grams":"",
+                        "Variant Inventory Tracker":"shopify",
+                        "Variant Inventory Policy":"deny",
+                        "Variant Price":product['price']['price'],
+                        "Variant Requires Shipping":"true",
+                        "Variant Taxable":"true",
+                        "Variant Barcode [ID]":size['upc'],
+                        "Image Src":self.map_images(product),
+                        "Status":"active",
+                        "Metafield: custom.product_type [single_line_text_field]":"",
+                        "Metafield: custom.product_category [single_line_text_field]":"",
+                        "Metafield: custom.product_subcategory [single_line_text_field]":"",
+                        "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
+                    }
+                    writer.writerow(row)
 
             except Exception as e:
                 traceback.print_exc()
@@ -134,5 +145,12 @@ class ProductsConnector(rackroom.ConnectorBase):
             )
         )
     def map_handle(self,product):
-        return "poopies-butthole"
+        return slugify(
+            "-".join([
+                product['base']['name'],
+                "-".join(list(map(lambda x:x['name'],product['colors']))),
+                product['sku']
+            ])
+        )
+        
     

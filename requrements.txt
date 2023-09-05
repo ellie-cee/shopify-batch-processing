@@ -3,4 +3,6 @@ ShopifyAPI
 python-dateutil
 xmlformatter
 python_graphql_client
+python-slugify
+slugify
 

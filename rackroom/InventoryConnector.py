@@ -58,7 +58,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
                     "Variant ID":self.upc_map[line[1]]['Variant ID'],
                     "Command":"Merge",
                     "Variant Command":"Merge",
-                    "Variant Barcode":line[1],
+                    "Variant Barcode [ID]":line[1],
                     "Inventory Available: ROK1":"",
                     "Inventory Available: ZAP2":""
                 }
@@ -71,8 +71,8 @@ class InventoryConnector(rackroom.base.ConnectorBase):
     def load(self):
         self.sftp_put(self.filename,f"to_Shopify/Product-Inventory.csv")
         return self
-    def cleanup(self):
-        for file in self.files:
-            os.remove(file.path)
-        os.remove(self.filename)
+    #def cleanup(self):
+        #for file in self.files:
+            #os.remove(file.path)
+        #os.remove(self.filename)
     

@@ -1,3 +1,5 @@
+import argparse
+from functools import reduce
 import shopify
 import os
 import sys
@@ -14,6 +16,11 @@ from python_graphql_client import GraphqlClient
 class OrderConnector(rackroom.base.ConnectorBase):
     def __init__(self):
         super().__init__()
+
+        ap = argparse.ArgumentParser()
+        ap.add_argument("-p","--path",help="Input Files Path")
+        self.opts = vars(ap.parse_args())
+
         shopify.ShopifyResource.set_site(
             "https://%s:%s@%s.myshopify.com/admin" % 
             (
@@ -129,9 +136,9 @@ class OrderConnector(rackroom.base.ConnectorBase):
             <last-name>{order.customer.last_name}</last-name>
             <first-name>{order.customer.first_name}</first-name>
             <country-code>{order.customer.default_address.country_code}</country-code>
-            <phone-numer>{order.customer.phone}</phone-numer>
+            <phone-number>{order.customer.phone}</phone-number>
             <email-address>{order.customer.email}</email-address>
-            <store-no>9101</store-no>
+            <store-no>9404</store-no>
         </user>
         <order-entries>
             {self.render_order_entries(order)}
@@ -143,7 +150,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                 order.save()
                 xml+="""
 </orders>"""
-                filename = f'tmp/Order.{order.id}.xml'
+                filename = f'{self.opts["path"]}/Order.{order.id}.xml'
                 output = open(filename,"w")
                 self.files.append(filename)
                 #formatter = xmlformatter.Formatter(indent="1", indent_char="\t", encoding_output="ISO-8859-1", preserve=["literal"])
@@ -158,16 +165,19 @@ class OrderConnector(rackroom.base.ConnectorBase):
         for line_item in order.line_items:
             order_entry = order_entry+1
             product = self.fetch_product(line_item.product_id)
-            variant = self.get_variant(product,line_item.variant_id)
-                        
+            try:
+                variant = self.get_variant(product,line_item.variant_id)
+            except Exception as e:
+                self.error(f"Line Item {line_item.id} on order {order.id} is no longer available")
+                continue
 
             xml+=f"""
             <order-entry>
                 <entrynumber>{order_entry}</entrynumber>
                 <product-name><![CDATA[{line_item.name}]]></product-name>
-                <product-code>{line_item.sku}</product-code>
-                    <base-price>{variant.compare_at_price}</base-price>
-                    <total-price>{variant.price}</total-price>
+                <product-code>{variant.barcode}</product-code>
+                    <base-price>{variant.price}</base-price>
+                    <total-price>{line_item.pre_tax_price}</total-price>
                     <discounts>
                         {self.render_discounts(line_item,order)}
                     </discounts>
@@ -179,7 +189,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     <tax>
                         <country-code>{order.shipping_address.country_code}</country-code>
                         <state-or-province>{order.shipping_address.province_code}</state-or-province>
-                        <total-tax-applied>{order.total_tax}</total-tax-applied>
+                        <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),line_item.tax_lines,0.0))}</total-tax-applied>
                         <tax-details>
                             {self.render_tax_lines(line_item)}
                         </tax-details>
@@ -188,7 +198,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     <delivery-code>{order.shipping_lines[0].code}</delivery-code>
                 </order-entry>
             """
-            return xml
+        return xml
     def render_tax_lines(self,line_item):
         xml=""
         for tax_line in line_item.tax_lines:
@@ -234,7 +244,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
         if transactions:
             transaction = transactions[-1]
             xml+=f"""
-                        <cybersource>
+                        <shopify>
                             <merchant-id>rackroom</merchant-id>
                             <request-id>{transaction.receipt.charges.data[0].id}</request-id>
                             <requestToken>{transaction.receipt.charges.data[0].payment_intent}</requestToken>
@@ -268,7 +278,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                                 <state>{order.billing_address.province_code}</state>
                                 <country-code>{order.billing_address.country_code}</country-code>
                             </billing-address>
-                        </cybersource>
+                        </shopify>
                 """
         return xml
     
