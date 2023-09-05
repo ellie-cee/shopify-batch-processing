@@ -47,6 +47,8 @@ class ProductsConnector(rackroom.ConnectorBase):
                         result[row[pkey]] = [result[row[pkey]],row]
                 else:
                     result[row[pkey]] = row
+            else:
+                print(f"missing primary key {pkey} in {file.path}")
         infile.close()
         return result
     def extract(self):
@@ -86,48 +88,53 @@ class ProductsConnector(rackroom.ConnectorBase):
         outfile = open(self.filename,"w")
         writer = csv.DictWriter(outfile,delimiter=',',quotechar='"',fieldnames=self.fieldnames())
         writer.writeheader()
-        for product in self.products.values():
-            try:
-                product['base'] = self.base_products[product['baseProduct']]
-                product['brand'] = self.brands[product['base']['brandId']]
-                product['size'] = self.sizes[product['sku']]
-                product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
-                 
-                product['price'] = self.prices[product['sku']]
-                for size in product['size']:
-                    row = {
-                        "Handle":self.map_handle(product),
-                        "Command":"MERGE",
-                        "Title":product['base']['name'].title(),
-                        "Body HTML":"",
-                        "Vendor":product['brand']['name'].title(),
-                        "Type":product['base']['type'],
-                        "Tags Command":"MERGE",
-                        "Tags":",".join([]),
-                        "Published":"true",
-                        "Option1 Name":"Size",
-                        "Option1 Value":size['size'],
-                        "Option2 Name":"Color",
-                        "Option2 Value":"/".join(list(map(lambda x: x['name'].title(),product['colors']))),
-                        "Variant SKU":product['sku'],
-                        "Variant Grams":"",
-                        "Variant Inventory Tracker":"shopify",
-                        "Variant Inventory Policy":"deny",
-                        "Variant Price":product['price']['price'],
-                        "Variant Requires Shipping":"true",
-                        "Variant Taxable":"true",
-                        "Variant Barcode [ID]":size['upc'],
-                        "Image Src":self.map_images(product),
-                        "Status":"active",
-                        "Metafield: custom.product_type [single_line_text_field]":"",
-                        "Metafield: custom.product_category [single_line_text_field]":"",
-                        "Metafield: custom.product_subcategory [single_line_text_field]":"",
-                        "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
-                    }
-                    writer.writerow(row)
+        for products in self.products.values():
+            if not isinstance(products,list):
+                products = [products]
 
-            except Exception as e:
-                traceback.print_exc()
+            for product in products:
+                try:
+                    
+                    product['base'] = self.base_products[product['baseProduct']]
+                    product['brand'] = self.brands[product['base']['brandId']]
+                    product['size'] = self.sizes[product['sku']]
+                    product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
+                    
+                    product['price'] = self.prices[product['sku']]
+                    for size in product['size']:
+                        row = {
+                            "Handle":self.map_handle(product),
+                            "Command":"MERGE",
+                            "Title":product['base']['name'].title(),
+                            "Body HTML":"",
+                            "Vendor":product['brand']['name'].title(),
+                            "Type":product['base']['type'],
+                            "Tags Command":"MERGE",
+                            "Tags":",".join([]),
+                            "Published":"true",
+                            "Option1 Name":"Size",
+                            "Option1 Value":size['size'],
+                            "Option2 Name":"Color",
+                            "Option2 Value":"/".join(list(map(lambda x: x['name'].title(),product['colors']))),
+                            "Variant SKU":product['sku'],
+                            "Variant Grams":"",
+                            "Variant Inventory Tracker":"shopify",
+                            "Variant Inventory Policy":"deny",
+                            "Variant Price":product['price']['price'],
+                            "Variant Requires Shipping":"true",
+                            "Variant Taxable":"true",
+                            "Variant Barcode [ID]":size['upc'],
+                            "Image Src":self.map_images(product),
+                            "Status":"active",
+                            "Metafield: custom.product_type [single_line_text_field]":"",
+                            "Metafield: custom.product_category [single_line_text_field]":"",
+                            "Metafield: custom.product_subcategory [single_line_text_field]":"",
+                            "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
+                        }
+                        writer.writerow(row)
+
+                except Exception as e:
+                    traceback.print_exc()
         outfile.close()
         return self
     def load(self):
