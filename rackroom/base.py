@@ -127,9 +127,9 @@ class ConnectorBase:
         except Exception as e:
             self.fatal(f"Unable to get {local} from remote: {str(e)}")
             
-    def get_matrixify_products(self):
+    def get_matrixify_products(self,filename="Products.csv"):
         upc_map = {}
-        self.sftp_get("from_Shopify/Products.csv","input/Products-Dump.csv")
+        self.sftp_get(f"from_Shopify/{filename}","input/Products-Dump.csv")
         pfile = open("input/Products-Dump.csv")
         reader = csv.DictReader(pfile,delimiter=',',quotechar='"')
         for row in reader:

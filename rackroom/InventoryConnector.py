@@ -14,6 +14,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         super().__init__()
         ap = argparse.ArgumentParser()
         ap.add_argument("-p","--path",help="Input Files Path")
+        
         self.opts = vars(ap.parse_args())
         if not "path" in self.opts:
             self.fatal("Input path not supplied!")
@@ -35,7 +36,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
             
             self.exit("No files to process.")
         else:
-          self.upc_map = self.get_matrixify_products()
+          self.upc_map = self.get_matrixify_products(self.config("PRODUCTS_FILE"))
 
         return self
 
@@ -45,6 +46,9 @@ class InventoryConnector(rackroom.base.ConnectorBase):
     def fields(self):
         return ["ID","Variant ID","Command","Variant Command","Variant Barcode","Inventory Available: ROK1","Inventory Available: ZAP2"]
     def map_to_location(self,store_number):
+        for pattern in self.config_dict.inventory.storemap.keys():
+            if re.search(pattern,store_number):
+                return self.conig_dict.inventory.storemap[pattern]
         return "ZAP2"
     
     def transform(self):
