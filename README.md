@@ -59,8 +59,9 @@
 	| Script Name                     | Script Intent                                                                |
 	| --------------------------------|------------------------------------------------------------------------------|
     | pull_orders_from_shopify.py     | Pull tagged orders from Shopify and format into XML as per RackRoom          |
-	| update_shopify_inventory.python | Consume input files and format a Matrixify update file for product inventory |
-	| update_shopify_products.python  | Consume input files and format a Matrixify update file for produucts         |  
+	| update_shopify_inventory.py     | Consume input files and format a Matrixify update file for product inventory |
+	| update_shopify_products.py      | Consume input files and format a Matrixify update file for produucts         |  
+	| update_shopify_fulfillment.py   | Consume input files and update order fulfillment details                     |  
 	
 
 ### Who do I talk to? ###
