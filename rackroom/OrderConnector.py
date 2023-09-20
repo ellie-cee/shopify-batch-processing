@@ -163,41 +163,42 @@ class OrderConnector(rackroom.base.ConnectorBase):
         xml=""
         order_entry = 0
         for line_item in order.line_items:
-            order_entry = order_entry+1
-            product = self.fetch_product(line_item.product_id)
-            try:
-                variant = self.get_variant(product,line_item.variant_id)
-            except Exception as e:
-                self.error(f"Line Item {line_item.id} on order {order.id} is no longer available")
-                continue
+            for itn in range(line_item.quantity):
+                order_entry = order_entry+1
+                product = self.fetch_product(line_item.product_id)
+                try:
+                    variant = self.get_variant(product,line_item.variant_id)
+                except Exception as e:
+                    self.error(f"Line Item {line_item.id} on order {order.id} is no longer available")
+                    continue
 
-            xml+=f"""
-            <order-entry>
-                <entrynumber>{order_entry}</entrynumber>
-                <product-name><![CDATA[{line_item.name}]]></product-name>
-                <product-code>{variant.barcode}</product-code>
-                    <base-price>{variant.price}</base-price>
-                    <total-price>{line_item.pre_tax_price}</total-price>
-                    <discounts>
-                        {self.render_discounts(line_item,order)}
-                    </discounts>
-                    <article-number>{variant.sku}</article-number>
-                    <variant-size>{self.find_option("Size",product,variant)}</variant-size>
-                    <variant-width>{self.find_option("Width",product,variant)}</variant-width>
-                    <variant-color>{self.find_option("Color",product,variant)}</variant-color>
-                    <orderentry-pk></orderentry-pk>
-                    <tax>
-                        <country-code>{order.shipping_address.country_code}</country-code>
-                        <state-or-province>{order.shipping_address.province_code}</state-or-province>
-                        <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),line_item.tax_lines,0.0))}</total-tax-applied>
-                        <tax-details>
-                            {self.render_tax_lines(line_item)}
-                        </tax-details>
-                    </tax>
-                    <stock-type>SHOPIFY</stock-type>
-                    <delivery-code>{order.shipping_lines[0].code}</delivery-code>
-                </order-entry>
-            """
+                xml+=f"""
+                <order-entry>
+                    <entrynumber>{order_entry}</entrynumber>
+                    <product-name><![CDATA[{line_item.name}]]></product-name>
+                    <product-code>{variant.barcode}</product-code>
+                        <base-price>{variant.price}</base-price>
+                        <total-price>{line_item.pre_tax_price}</total-price>
+                        <discounts>
+                            {self.render_discounts(line_item,order)}
+                        </discounts>
+                        <article-number>{variant.sku}</article-number>
+                        <variant-size>{self.find_option("Size",product,variant)}</variant-size>
+                        <variant-width>{self.find_option("Width",product,variant)}</variant-width>
+                        <variant-color>{self.find_option("Color",product,variant)}</variant-color>
+                        <orderentry-pk></orderentry-pk>
+                        <tax>
+                            <country-code>{order.shipping_address.country_code}</country-code>
+                            <state-or-province>{order.shipping_address.province_code}</state-or-province>
+                            <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),line_item.tax_lines,0.0))}</total-tax-applied>
+                            <tax-details>
+                                {self.render_tax_lines(line_item)}
+                            </tax-details>
+                        </tax>
+                        <stock-type>SHOPIFY</stock-type>
+                        <delivery-code>{order.shipping_lines[0].code}</delivery-code>
+                    </order-entry>
+                """
         return xml
     def render_tax_lines(self,line_item):
         xml=""

@@ -51,10 +51,10 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                     reader = csv.DictReader(open(file.path),quotechar='"',delimiter=',')
 
                     for row in reader:
-                        if row['ChannelOrderID'] in self.orders:
-                            self.orders[row['ChannelOrderID']].append(row)
+                        if row['OrderCode'] in self.orders:
+                            self.orders[row['OrderCode']].append(row)
                         else:
-                            self.orders[row['ChannelOrderID']] = [row]
+                            self.orders[row['OrderCode']] = [row]
             if len(self.files)>0:
                 self.upc_map = self.get_matrixify_products()
             else:
@@ -74,7 +74,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
             for code in fulfillments:
                 try:
                     line_item = list(
-                        filter(lambda x:x.sku==code['ChannelOrderItemID'],order.line_items)
+                        filter(lambda x:x.sku==code['productCode'],order.line_items)
                     )[0]
                     
                     row ={

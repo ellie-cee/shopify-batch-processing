@@ -24,17 +24,17 @@ class ProductsConnector(rackroom.ConnectorBase):
     def fieldnames(self):
         return [
             "Handle","Command","Title","Body HTML","Vendor","Type",
-            "Tags Command","Tags","Published","Option1 Name","Option1 Value",
+            "Tags Command","Tags","Published","Published At","Option1 Name","Option1 Value",
             "Option2 Name","Option2 Value","Variant SKU","Variant Grams","Variant Inventory Tracker",
             "Variant Inventory Policy","Variant Price","Variant Requires Shipping",
-            "Variant Taxable","Variant Barcode [ID]","Image Src",
+            "Variant Taxable","Variant Barcode [ID]","Variant Inventory Qty","Image Src",
             "Status",
             "Metafield: custom.product_type [single_line_text_field]",
             "Metafield: custom.product_category [single_line_text_field]",
             "Metafield: custom.product_subcategory [single_line_text_field]",
             "Metafield: custom.gender [list.single_line_text_field]"
         ]
-    def read_file(self,file,pkey):
+    def read_file(self,file,pkey,force_array=False):
         result = {}
         infile = open(file.path)
         reader = csv.DictReader(infile,quotechar='"',delimiter=',')
@@ -46,14 +46,26 @@ class ProductsConnector(rackroom.ConnectorBase):
                     else:
                         result[row[pkey]] = [result[row[pkey]],row]
                 else:
-                    result[row[pkey]] = row
+                    if force_array:
+                        result[row[pkey]] = [row]
+                    else:
+                        result[row[pkey]] = row
             else:
                 print(f"missing primary key {pkey} in {file.path}")
         infile.close()
         return result
+    
+    def read_inventory(self,file):
+        infile = open(file.path)
+        reader = csv.DictReader(infile,quotechar='"',delimiter=',')
+        for row in reader:
+            self.inventory[row['upc']] = row['qty']
+        infile.close()
+
     def extract(self):
         
         self.files = []
+        self.inventory = {}
         try:
             for file in os.scandir(self.opts["path"]):
                 if file.is_file():
@@ -68,12 +80,15 @@ class ProductsConnector(rackroom.ConnectorBase):
                         case "03":
                             self.colors = self.read_file(file,"id")
                         case "13":
-                            self.sizes = self.read_file(file,"sku")
+                            self.sizes = self.read_file(file,"sku",True)
                         case "14":
                             self.prices = self.read_file(file,"sku")
                         case "02":
                             self.color_families = self.read_file(file,"id")
-
+                       # case "24":
+                           #self.read_inventory(file)
+                        #case "25":
+                           # self.read_inventory(file)
                     
                     
             if len(self.files)>0:
@@ -94,11 +109,17 @@ class ProductsConnector(rackroom.ConnectorBase):
 
             for product in products:
                 try:
+
+                    if not product['sku'] in self.sizes:
+                        sku= product['sku']
+                        print(f'"{sku}"')
+                        continue
                     
                     product['base'] = self.base_products[product['baseProduct']]
                     product['brand'] = self.brands[product['base']['brandId']]
                     product['size'] = self.sizes[product['sku']]
                     product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
+                    product['inventory'] = "100"
                     
                     product['price'] = self.prices[product['sku']]
                     for size in product['size']:
@@ -112,10 +133,10 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Tags Command":"MERGE",
                             "Tags":",".join([]),
                             "Published":"true",
-                            "Option1 Name":"Size",
-                            "Option1 Value":size['size'],
-                            "Option2 Name":"Color",
-                            "Option2 Value":"/".join(list(map(lambda x: x['name'].title(),product['colors']))),
+                            "Option2 Name":"Size",
+                            "Option2 Value":size['size'],
+                            "Option1 Name":"Color",
+                            "Option1 Value":"/".join(list(map(lambda x: x['name'].title(),product['colors']))),
                             "Variant SKU":product['sku'],
                             "Variant Grams":"",
                             "Variant Inventory Tracker":"shopify",
@@ -126,9 +147,11 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Variant Barcode [ID]":size['upc'],
                             "Image Src":self.map_images(product),
                             "Status":"active",
+                            "Variant Inventory Qty":product['inventory'],
                             "Metafield: custom.product_type [single_line_text_field]":"",
                             "Metafield: custom.product_category [single_line_text_field]":"",
                             "Metafield: custom.product_subcategory [single_line_text_field]":"",
+                            "Published At":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
                         }
                         writer.writerow(row)
@@ -138,7 +161,7 @@ class ProductsConnector(rackroom.ConnectorBase):
         outfile.close()
         return self
     def load(self):
-      #  self.sftp_put(self.filename,"to_Shopify/Products-ImpUp.csv")
+        self.sftp_put(self.filename,"to_Shopify/Products-ImpUp.csv")
         return self
     def cleanup(self):
         return self
