@@ -79,8 +79,9 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                     line_item = list(
                         filter(lambda x:x.sku==self.upc_map[code['productCode']]['Variant SKU'],order.line_items)
                     )[0]
+                    
                     row = None
-                    if code['Fulfilled']==1:
+                    if code['Fulfilled']=="1":
                         row ={
                             "ID":order.id,
                             "Name":order.name,
@@ -97,12 +98,13 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                         }
                     else:
                         row ={
+                            "Refund: ID":str(fulfillment_id),
                             "ID":order.id,
                             "Name":order.name,
                             "Command":"UPDATE",
                             "Line: Type":"Refund Line",
                             "Line: ID":line_item.id,
-                            "Line: Quantity":code['Quantity'],
+                            "Line: Quantity":f"-{code['Quantity']}",
                             "Fulfillment: Status":"cancelled",
                             "Refund: Note":"cancelled or unfulfillable",
                             "Refund: Restock":"TRUE",
@@ -127,5 +129,5 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         for file in self.files:
             #os.remove(file)
             x = 1
-        os.remove(self.filename)
+        #os.remove(self.filename)
         return self
