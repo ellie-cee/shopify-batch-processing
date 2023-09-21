@@ -140,8 +140,8 @@ class ConnectorBase:
                 'Variant ID':row['Variant ID'],
                 'Variant SKU':row['Variant SKU']
             }
-            pfile.close()
-            return upc_map
+        pfile.close()
+        return upc_map
         
     def tmpfile(self,base,type):
         return f"{self.config('TMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"

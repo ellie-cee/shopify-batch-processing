@@ -39,6 +39,8 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
             "Fulfillment: Updated At","Fulfillment: Tracking Company","Fulfillment: Location",
             "Fulfillment: Shipment Status","Fulfillment: Tracking Number",
             "Fulfillment: Tracking URL","Fulfillment: Send Receipt",
+            "Refund: ID","Refund: Note","Refund: Restock","Refund: Restock Type",
+        	"Refund: Send Receipt","Refund: Generate Transaction"
         ]
     
     def extract(self):
@@ -57,6 +59,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                             self.orders[row['OrderCode']] = [row]
             if len(self.files)>0:
                 self.upc_map = self.get_matrixify_products()
+                
             else:
                 self.exit("Nothing to process!")
         except Exception as e:
@@ -74,23 +77,39 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
             for code in fulfillments:
                 try:
                     line_item = list(
-                        filter(lambda x:x.sku==code['productCode'],order.line_items)
+                        filter(lambda x:x.sku==self.upc_map[code['productCode']]['Variant SKU'],order.line_items)
                     )[0]
-                    
-                    row ={
-                        "ID":order.id,
-                        "Name":order.name,
-                        "Command":"UPDATE",
-                        "Line: Type":"Fulfillment Line",
-                        "Line: ID":line_item.id,
-                        "Line: Quantity":code['Quantity'],
-                        "Fulfillment: ID":str(fulfillment_id),
-                        "Fulfillment: Status":"success",
-                        "Fulfillment: Shipment Status":"label_printed",
-                        "Fulfillment: Tracking Company":code['Carrier'],
-                        "Fulfillment: Tracking Number":code['ShippingTrackingNumber'],
-                        "Fulfillment: Send Receipt":"true"
-                    }
+                    row = None
+                    if code['Fulfilled']==1:
+                        row ={
+                            "ID":order.id,
+                            "Name":order.name,
+                            "Command":"UPDATE",
+                            "Line: Type":"Fulfillment Line",
+                            "Line: ID":line_item.id,
+                            "Line: Quantity":code['Quantity'],
+                            "Fulfillment: ID":str(fulfillment_id),
+                            "Fulfillment: Status":"success",
+                            "Fulfillment: Shipment Status":"label_printed",
+                            "Fulfillment: Tracking Company":code['Carrier'],
+                            "Fulfillment: Tracking Number":code['ShippingTrackingNumber'],
+                            "Fulfillment: Send Receipt":"true"
+                        }
+                    else:
+                        row ={
+                            "ID":order.id,
+                            "Name":order.name,
+                            "Command":"UPDATE",
+                            "Line: Type":"Refund Line",
+                            "Line: ID":line_item.id,
+                            "Line: Quantity":code['Quantity'],
+                            "Fulfillment: Status":"cancelled",
+                            "Refund: Note":"cancelled or unfulfillable",
+                            "Refund: Restock":"TRUE",
+                            "Refund: Restock Type":"cancel",
+        	                "Refund: Send Receipt":"TRUE",
+                            "Refund: Generate Transaction":"false"
+                        }
                     writer.writerow(row)
                     fulfillment_id=fulfillment_id+1
                 except:

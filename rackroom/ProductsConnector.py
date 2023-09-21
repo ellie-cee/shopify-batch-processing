@@ -68,7 +68,7 @@ class ProductsConnector(rackroom.ConnectorBase):
         self.inventory = {}
         try:
             for file in os.scandir(self.opts["path"]):
-                if file.is_file():
+                if file.is_file() and not "done" in file.name:
                     match file.name.split(".")[0]:
                         case "12":
                             self.files.append(file)
@@ -85,6 +85,8 @@ class ProductsConnector(rackroom.ConnectorBase):
                             self.prices = self.read_file(file,"sku")
                         case "02":
                             self.color_families = self.read_file(file,"id")
+                        case "01":
+                            self.categories = self.read_file(file,"categoryId")
                        # case "24":
                            #self.read_inventory(file)
                         #case "25":
@@ -120,6 +122,7 @@ class ProductsConnector(rackroom.ConnectorBase):
                     product['size'] = self.sizes[product['sku']]
                     product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
                     product['inventory'] = "100"
+                    product["category"] = product["categories"].split("|") 
                     
                     product['price'] = self.prices[product['sku']]
                     for size in product['size']:
@@ -131,7 +134,13 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Vendor":product['brand']['name'].title(),
                             "Type":product['base']['type'],
                             "Tags Command":"MERGE",
-                            "Tags":",".join([]),
+                            "Tags":",".join([
+                                f"Gender: {product['gender'].capitalize()}",
+                                f"ProductId: {product['sku']}",
+                                f"ProductCategory: {self.categories[product['category'][0]]['name']}",
+                                f"GenderProductCategory: {product['gender'].capitalize()} {self.categories[product['category'][0]]['name']}",
+                                f"cv:{self.map_handle(product)}"
+                            ]),
                             "Published":"true",
                             "Option2 Name":"Size",
                             "Option2 Value":size['size'],
