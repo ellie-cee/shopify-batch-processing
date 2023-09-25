@@ -178,7 +178,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     <product-name><![CDATA[{line_item.name}]]></product-name>
                     <product-code>{variant.barcode}</product-code>
                         <base-price>{variant.price}</base-price>
-                        <total-price>{line_item.pre_tax_price}</total-price>
+                        <total-price>{float(line_item.pre_tax_price)/line_item.quantity}</total-price>
                         <discounts>
                             {self.render_discounts(line_item,order)}
                         </discounts>
@@ -190,7 +190,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                         <tax>
                             <country-code>{order.shipping_address.country_code}</country-code>
                             <state-or-province>{order.shipping_address.province_code}</state-or-province>
-                            <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),line_item.tax_lines,0.0))}</total-tax-applied>
+                            <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),line_item.tax_lines,0.0)/line_item.quantity)}</total-tax-applied>
                             <tax-details>
                                 {self.render_tax_lines(line_item)}
                             </tax-details>
@@ -209,10 +209,10 @@ class OrderConnector(rackroom.base.ConnectorBase):
                                 <authorityName></authorityName>
                                 <authorityType>12043</authorityType>
                                 <taxName>{tax_line.title}</taxName>
-                                <taxApplied>{tax_line.price}</taxApplied>
+                                <taxApplied>{float(tax_line.price)/line_item.quantity}</taxApplied>
                                 <feeApplied>0.0</feeApplied>
-                                <taxableQuantity>{line_item.quantity}</taxableQuantity>
-                                <taxableAmount>{line_item.price}</taxableAmount>
+                                <taxableQuantity>1</taxableQuantity>
+                                <taxableAmount>{float(line_item.price)/line_item.quantity}</taxableAmount>
                                 <exemptQty>0.0</exemptQty>
                                 <exemptAmt>0.0</exemptAmt>
                                 <taxRate>{tax_line.rate}</taxRate>
@@ -230,7 +230,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                         <discount>
                             <id></id>
                             <name>{discount.get("title")}</name>
-                            <value>{discount_line.amount}</value>
+                            <value>{float(discount_line.amount)/line_item.quantity}</value>
                             <groupid></groupid>
                             <discountType>PROMOTION</discountType>
                         </discount>
