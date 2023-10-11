@@ -7,6 +7,7 @@ import time
 import traceback
 import shopify
 import re
+import hashlib
 from python_graphql_client import GraphqlClient
 
 from datetime import datetime
@@ -46,17 +47,28 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
     def extract(self):
         self.orders = {}
         self.files = []
+        processed = {}
         try:
             for file in os.scandir(self.opts["path"]):
-                if file.is_file() and re.search("^OrderFulfillment.*",file.name):
+                if file.is_file() and re.search(self.config("fulfillment_file_name"),file.name):
+                    
                     self.files.append(file)
                     reader = csv.DictReader(open(file.path),quotechar='"',delimiter=',')
 
                     for row in reader:
+                        digest = hashlib.md5(json.dumps(row,sort_keys=True).encode('utf-8')).hexdigest()
+
                         if row['OrderCode'] in self.orders:
-                            self.orders[row['OrderCode']].append(row)
+                            if digest not in processed:                     
+                                self.orders[row['OrderCode']].append(row)
+                                processed[digest] = True
                         else:
                             self.orders[row['OrderCode']] = [row]
+                            processed[digest] = True
+
+            
+            
+            
             if len(self.files)>0:
                 self.upc_map = self.get_matrixify_products()
                 
@@ -127,7 +139,8 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         return self
     def cleanup(self):
         for file in self.files:
-            #os.remove(file)
+            if self.config("purge")=="yes":
+                os.remove(file)
             x = 1
         #os.remove(self.filename)
         return self

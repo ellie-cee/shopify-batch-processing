@@ -115,6 +115,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
         <delivery>
             <code>{order.shipping_lines[0].code}</code>
             <cost>{order.shipping_lines[0].price}</cost>
+            {self.render_shipping_tax_lines(order)}
         </delivery>
         <user>
             <code>{order.customer.id}</code>
@@ -200,6 +201,36 @@ class OrderConnector(rackroom.base.ConnectorBase):
                     </order-entry>
                 """
         return xml
+    def render_shipping_tax_lines(self,order):
+        xml=""
+        for tax_line in order.shipping_lines[0].tax_lines:
+
+            xml+=f"""
+              <tax-details>
+                    <detail>
+                        <authorityName></authorityName>
+                        <authorityType>12043</authorityType>
+                        <taxName>{tax_line.title}</taxName>
+                        <taxApplied>{float(tax_line.price)}</taxApplied>
+                        <feeApplied>0.0</feeApplied>
+                        <taxableQuantity>1</taxableQuantity>
+                        <taxableAmount>{float(order.shipping_lines[0].price)}</taxableAmount>
+                        <exemptQty>0.0</exemptQty>
+                        <exemptAmt>0.0</exemptAmt>
+                        <taxRate>{tax_line.rate}</taxRate>
+                        <baseType/>
+                        <passFlag/>
+                        <passType/>
+                    </detail>
+                </tax-details>
+            """
+        
+        return f"""<tax>
+                    <country-code>{order.shipping_address.country_code}</country-code>
+                    <state-or-province>{order.shipping_address.province_code}</state-or-province>
+                    <total-tax-applied>{"%0.2f" % (reduce(lambda a,b:a+float(b.price),order.shipping_lines[0].tax_lines,0.0))}</total-tax-applied>
+                    {xml}
+                </tax>"""
     def render_tax_lines(self,line_item):
         xml=""
         for tax_line in line_item.tax_lines:
@@ -226,10 +257,15 @@ class OrderConnector(rackroom.base.ConnectorBase):
         xml=""
         for discount_line in line_item.discount_allocations:
             discount = self.get_discount_allocation(discount_line,order)
+            discount_label = ""
+            if "title" in discount:
+                discount_label = discount.get("title")
+            else:
+                discount_label = discount.get("code")
             xml+=f"""
                         <discount>
                             <id></id>
-                            <name>{discount.get("title")}</name>
+                            <name>{discount_label}</name>
                             <value>{float(discount_line.amount)/line_item.quantity}</value>
                             <groupid></groupid>
                             <discountType>PROMOTION</discountType>
@@ -258,14 +294,24 @@ class OrderConnector(rackroom.base.ConnectorBase):
                             <avs-matching-code>{transaction.payment_details.avs_result_code}</avs-matching-code>
                             <order-amount>{transaction.receipt.charges.data[0].amount/100}</order-amount>
                             <request-amount>{transaction.receipt.charges.data[0].amount/100}</request-amount>
-                            <authorized-amount>{transaction.receipt.charges.data[0].payment_method_details.card.amount_authorized}</authorized-amount>
+                            <authorized-amount>{self.authorized_amount(transaction)}</authorized-amount>
                             <currency>
                                 <currency-code>{transaction.currency}</currency-code>
                             </currency>
-                            <mask-cc-number>transaction.payment_details.credit_card_number</mask-cc-number>
+                            <mask-cc-number>XXXX XXXX XXXX {transaction.payment_details.credit_card_number.split(" ")[-1]}</mask-cc-number>
+                """
+            try:
+                            xml+=f"""
                             <card-expiration-month>{transaction.receipt.charges.data[0].payment_method_details.card.exp_month}</card-expiration-month>
                             <card-expiration-year>{transaction.receipt.charges.data[0].payment_method_details.card.exp_year}</card-expiration-year>
-                            <card-type>{transaction.receipt.charges.data[0].payment_method_details.card.brand}</card-type>
+                            """
+            except:
+                            xml+="""
+                            <card-expiration-month></card-expiration-month>
+                            <card-expiration-year></card-expiration-year>
+                            """        
+            
+            xml+=f"""        <card-type>{transaction.payment_details.credit_card_company}</card-type>
                             <billing-address>
                                 <email>{order.customer.email}</email>
                                 <phone/>
@@ -282,7 +328,12 @@ class OrderConnector(rackroom.base.ConnectorBase):
                         </shopify>
                 """
         return xml
-    
+    def authorized_amount(self,transaction):
+        try:
+            return transaction.receipt.charges.data[0].payment_method_details.card.amount_authorized
+        except:
+            return transaction.receipt.charges.data[0].amount/100
+
     def fetch_transactions(self,id):
         retries = 10
         success = False

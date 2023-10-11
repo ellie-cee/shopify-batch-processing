@@ -26,7 +26,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         self.files = []
         self.upc_map = {}
         for file in os.scandir(self.opts["path"]):
-            if file.is_file() and re.search("^(?:26|28)",file.name):
+            if file.is_file() and file.name.startswith("order_updates"):
                 self.files.append(file)
                 reader = csv.reader(open(file.path),quotechar='"',delimiter=',')
                 next(reader)
@@ -35,9 +35,6 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         if len(self.files)<1:
             
             self.exit("No files to process.")
-        else:
-          self.upc_map = self.get_matrixify_products(self.config("PRODUCTS_FILE"))
-
         return self
 
     def statefile(self):
@@ -46,10 +43,10 @@ class InventoryConnector(rackroom.base.ConnectorBase):
     def fields(self):
         return ["ID","Variant ID","Command","Variant Command","Variant Barcode","Inventory Available: ROK1","Inventory Available: ZAP2"]
     def map_to_location(self,store_number):
-        for pattern in self.config_dict.inventory.storemap.keys():
+        for pattern in self.config_dict['inventory']['storemap'].keys():
             if re.search(pattern,store_number):
-                return self.conig_dict.inventory.storemap[pattern]
-        return "ZAP2"
+                return self.config_dict['inventory']['storemap'][pattern]
+        return "ROK1"
     
     def transform(self):
         outfile = open(self.filename,"w")
@@ -62,7 +59,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
                     "Variant ID":self.upc_map[line[1]]['Variant ID'],
                     "Command":"Merge",
                     "Variant Command":"Merge",
-                    "Variant Barcode [ID]":line[1],
+                    "Variant Barcode":line[1],
                     "Inventory Available: ROK1":"",
                     "Inventory Available: ZAP2":""
                 }
@@ -75,8 +72,9 @@ class InventoryConnector(rackroom.base.ConnectorBase):
     def load(self):
         self.sftp_put(self.filename,f"to_Shopify/Product-Inventory.csv")
         return self
-    #def cleanup(self):
-        #for file in self.files:
-            #os.remove(file.path)
+    def cleanup(self):
+        for file in self.files:
+            if self.config("purge")=="yes":
+                os.remove(file.path)
         #os.remove(self.filename)
     

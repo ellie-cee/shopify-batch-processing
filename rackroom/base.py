@@ -16,17 +16,15 @@ from python_graphql_client import GraphqlClient
 
 class ConnectorBase:
     def __init__(self):
+        self.path = os.path.dirname(sys.argv[0])
         try:
-            self.config_dict = json.load(open("config/config.json"))
-            self.state = self.loadstate()
+            self.config_dict = json.load(open(f"{self.path}/config/config.json"))
+            
         except Exception as e:
             traceback.print_exc()
             self.error(str(e))
-        #if (self.state['state']=="running"):
-          #  self.warning("%s already running" % (sys.argv[0]))
-          #  sys.exit(0)
-        self.setstate("running")
-        
+    def statefile(self):
+        return "base"
     def config(self,key):
         if os.getenv(key):
             return os.getenv(key)
@@ -34,23 +32,6 @@ class ConnectorBase:
             return self.config_dict[key]
         else:
             return None
-    def setstate(self,state,ts=None):
-        self.state['state'] = state
-        if (ts!=None):
-            self.state['lastrun'] = ts.strftime("%Y-%m-%dT%H:%M:%S-4:00")
-        sfo = open("config/%s.state" % (self.statefile()),"w")
-        print(json.dumps(self.state),file=sfo)
-
-    def loadstate(self):
-        try:
-            return json.load(open("config/%s.state" % (self.statefile())))
-        except:
-            return {
-                'state':'init',
-                'lastrun':datetime.now().strftime("%Y-%m-%dT%H:%M:%S-4:00")
-            }
-    def statefile(self):
-        return "base"
     def extract(self):
         self.info(f"Running {self.statefile()}: Extract Data")
         return self
@@ -64,7 +45,6 @@ class ConnectorBase:
         self.info(f"Running {self.statefile()}: Cleanup")
     def exit(self,message):
         self.info(message)
-        self.setstate("success",ts=datetime.now())
         sys.exit(0)
     def fatal(self,message):
         traceback.print_exc()
@@ -72,7 +52,7 @@ class ConnectorBase:
         sys.exit(-1)
     def error(self,message):
         self.log("error",message)
-        self.setstate("error")
+      
     def warning(self,message):
         self.log("warning",message)
     def info(self,message):
@@ -90,7 +70,7 @@ class ConnectorBase:
                 transport.connect(
                     username=self.config("SFTP_USER"),
                     password=None,
-                    pkey=paramiko.ECDSAKey(filename=self.config("SFTP_KEY"))
+                    pkey=paramiko.ECDSAKey(filename=f"{self.path}/{self.config('SFTP_KEY')}")
                 )
                 return paramiko.SFTPClient.from_transport(transport)
             except Exception as e:
@@ -129,11 +109,11 @@ class ConnectorBase:
             
     def get_matrixify_products(self,filename="Products.csv"):
         upc_map = {}
-        self.sftp_get(f"from_Shopify/{filename}","input/Products-Dump.csv")
-        pfile = open("input/Products-Dump.csv")
+        self.sftp_get(f"from_Shopify/{filename}",f"{self.path}/input/Products-Dump.csv")
+        pfile = open(f"{self.path}/input/Products-Dump.csv")
         reader = csv.DictReader(pfile,delimiter=',',quotechar='"')
         for row in reader:
-                
+            print(json.dumps(row,indent=2))    
             #omg matrixify HATECHU
             upc_map[row['Variant Barcode']] = {
                 'ID':row[reader.fieldnames[0]],
@@ -144,6 +124,6 @@ class ConnectorBase:
         return upc_map
         
     def tmpfile(self,base,type):
-        return f"{self.config('TMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"
+        return f"{self.path}/{self.config('TMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"
 
 

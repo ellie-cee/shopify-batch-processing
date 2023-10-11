@@ -87,10 +87,13 @@ class ProductsConnector(rackroom.ConnectorBase):
                             self.color_families = self.read_file(file,"id")
                         case "01":
                             self.categories = self.read_file(file,"categoryId")
-                       # case "24":
-                           #self.read_inventory(file)
-                        #case "25":
-                           # self.read_inventory(file)
+                        case "24":
+                           self.read_inventory(file)
+                        case "25":
+                            self.read_inventory(file)
+                    if file.name.startswith("product_desc"):
+                        self.product_desc = {x['product_sku']:x['product_description'] for x in json.load(open(file.path))}
+
                     
                     
             if len(self.files)>0:
@@ -121,16 +124,27 @@ class ProductsConnector(rackroom.ConnectorBase):
                     product['brand'] = self.brands[product['base']['brandId']]
                     product['size'] = self.sizes[product['sku']]
                     product['colors'] = list(map(lambda x: self.colors[x],product['colors'].split("|")))
-                    product['inventory'] = "100"
-                    product["category"] = product["categories"].split("|") 
+                    product['inventory'] = ""
+                    if product['sku'] in self.product_desc:
+                        product['description'] = self.product_desc[product['sku']]
+                    else:
+                        product['description'] = ""
+                    
+                        
+                    product["category"] = product["categories"].split("|")
+                    product['webcats'] = self.parse_categories(product["categories"])
                     
                     product['price'] = self.prices[product['sku']]
                     for size in product['size']:
+                        if size["upc"] in self.inventory:
+                            product["inventory"] = self.inventory[size['upc']]
+                        else:
+                            product["inventory"] = ""
                         row = {
                             "Handle":self.map_handle(product),
                             "Command":"MERGE",
                             "Title":product['base']['name'].title(),
-                            "Body HTML":"",
+                            "Body HTML":product['description'],
                             "Vendor":product['brand']['name'].title(),
                             "Type":product['base']['type'],
                             "Tags Command":"MERGE",
@@ -139,7 +153,8 @@ class ProductsConnector(rackroom.ConnectorBase):
                                 f"ProductId: {product['sku']}",
                                 f"ProductCategory: {self.categories[product['category'][0]]['name']}",
                                 f"GenderProductCategory: {product['gender'].capitalize()} {self.categories[product['category'][0]]['name']}",
-                                f"cv:{self.map_handle(product)}"
+                                f"cv:{self.map_handle(product)}",
+                                f"WebSkuGroup:{product['base']['name'].title()}"
                             ]),
                             "Published":"true",
                             "Option2 Name":"Size",
@@ -157,9 +172,9 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Image Src":self.map_images(product),
                             "Status":"active",
                             "Variant Inventory Qty":product['inventory'],
-                            "Metafield: custom.product_type [single_line_text_field]":"",
-                            "Metafield: custom.product_category [single_line_text_field]":"",
-                            "Metafield: custom.product_subcategory [single_line_text_field]":"",
+                            "Metafield: custom.product_type [single_line_text_field]":", ".join(product['webcats']['cat']),
+                            "Metafield: custom.product_category [single_line_text_field]":", ".join(product['webcats']['styles']),
+                            "Metafield: custom.product_subcategory [single_line_text_field]":", ".join(product['webcats']['features']),
                             "Published At":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "Metafield: custom.gender [list.single_line_text_field]":product['gender'].capitalize()
                         }
@@ -191,5 +206,20 @@ class ProductsConnector(rackroom.ConnectorBase):
                 product['sku']
             ])
         )
-        
+    def parse_categories(self,cats):
+        ret = {
+            'cat':[],
+            'styles':[],
+            'features':[]
+        }
+        for cat in cats.split("|"):
+            if cat in self.categories:
+                catname = self.categories[cat]['name']
+                if cat.endswith("style"):
+                    ret['styles'].append(catname)
+                elif cat.endswith("feature"): 
+                    ret['features'].append(catname)
+                else:
+                    ret['cat'].append(catname)
+        return ret    
     
