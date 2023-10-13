@@ -124,6 +124,6 @@ class ConnectorBase:
         return upc_map
         
     def tmpfile(self,base,type):
-        return f"{self.path}/{self.config('TMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"
+        return f"{self.path}/{self.config('TEMPDIR')}/{base}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.{type}"
 
 

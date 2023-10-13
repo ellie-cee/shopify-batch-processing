@@ -39,7 +39,7 @@
 
     Configuration is contained in <install_dir>/config/config.json and in environment variables, with environment variables being preferable for sensitive information such as usernames and API keys but this is left to the discretion of the client.  
 	
-	| TMPDIR         | local temporary directory                                |
+	| TEMPDIR         | local temporary directory                                |
 	| ---------------|----------------------------------------------------------|
 	| SFTP_HOST      |  SFTP server hostname                                    |
 	| SFTP_USER      |  SFTP Username                                           |
