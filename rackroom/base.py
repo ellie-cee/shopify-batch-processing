@@ -113,7 +113,7 @@ class ConnectorBase:
         pfile = open(f"{self.path}/input/Products-Dump.csv")
         reader = csv.DictReader(pfile,delimiter=',',quotechar='"')
         for row in reader:
-            print(json.dumps(row,indent=2))    
+          
             #omg matrixify HATECHU
             upc_map[row['Variant Barcode']] = {
                 'ID':row[reader.fieldnames[0]],
