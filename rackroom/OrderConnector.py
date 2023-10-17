@@ -321,13 +321,25 @@ class OrderConnector(rackroom.base.ConnectorBase):
                                 <street1>{order.billing_address.address1}</street1>
                                 <street2>{order.billing_address.address2}</street2>
                                 <city>{order.billing_address.city}</city>
-                                <postal-code>{order.billing_address.zip}</postal-code>
+                                <postal-code>{self.zip(order.billing_address)}</postal-code>
+                                <postal-code-plus-4>{self.zip4(order.billing_address)}</postal-code-plus-4>
                                 <state>{order.billing_address.province_code}</state>
                                 <country-code>{order.billing_address.country_code}</country-code>
                             </billing-address>
                         </shopify>
                 """
         return xml
+    def zip(self,address):
+        if address.country_code.startswith("US"):
+            return address.zip.split("-")[0]
+        
+        return address.zip
+    def zip4(self,address):
+        if address.country_code.startswith("US"):
+            zp =  address.zip.split("-")
+            if (len(zp)>1):
+                return zp[-1]
+        return ""
     def authorized_amount(self,transaction):
         try:
             return transaction.receipt.charges.data[0].payment_method_details.card.amount_authorized

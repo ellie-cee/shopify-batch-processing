@@ -82,10 +82,11 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         outfile = open(self.filename,"w")
         writer = csv.DictWriter(outfile,delimiter=',',quotechar='"',fieldnames=self.fields())
         writer.writeheader()
+        fulfillment_id = 1
         for order_id in self.orders.keys():
             fulfillments = self.orders[order_id]
             order = shopify.Order.find(order_id)
-            fulfillment_id = 1
+            
             for code in fulfillments:
                 try:
                     line_item = list(
