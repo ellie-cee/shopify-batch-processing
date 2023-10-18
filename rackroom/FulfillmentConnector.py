@@ -70,7 +70,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
             
             
             if len(self.files)>0:
-                self.upc_map = self.get_matrixify_products()
+                self.upc_map = self.get_matrixify_products(self.config("PRODUCTS_FILE"))
                 
             else:
                 self.exit("Nothing to process!")
@@ -90,7 +90,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
             for code in fulfillments:
                 try:
                     line_item = list(
-                        filter(lambda x:x.sku==self.upc_map[code['productCode']]['Variant SKU'],order.line_items)
+                        filter(lambda x:str(x.variant_id)==self.upc_map[code['productCode']]['Variant ID'],order.line_items)
                     )[0]
                     
                     row = None
