@@ -20,14 +20,18 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         ap = argparse.ArgumentParser()
         ap.add_argument("-p","--path",help="Input Files Path")
         self.opts = vars(ap.parse_args())
-        shopify.ShopifyResource.set_site(
-            "https://%s:%s@%s.myshopify.com/admin" % 
-            (
-                self.config("SHOPIFY_KEY"),
-                self.config("SHOPIFY_SECRET"),
-                self.config("SHOPIFY_SITE")
-            )    
-        )
+
+        session = shopify.Session(f"{self.config('SHOPIFY_SITE')}.myshopify.com/admin","2023-04",self.config("SHOPIFY_SECRET"))
+        shopify.ShopifyResource.activate_session(session)
+
+        #shopify.ShopifyResource.set_site(
+         #   "https://%s:%s@%s.myshopify.com/admin/2023-10/" % 
+          ##  (
+            #    self.config("SHOPIFY_KEY"),
+             #   self.config("SHOPIFY_SECRET"),
+              #  self.config("SHOPIFY_SITE")
+            #)    
+        #)
         self.filename = self.tmpfile("Order-Shipping","csv")
 
     def statefile(self):
@@ -92,7 +96,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
                     line_item = list(
                         filter(lambda x:str(x.variant_id)==self.upc_map[code['productCode']]['Variant ID'],order.line_items)
                     )[0]
-                    
+                    print(line_item.id)
                     row = None
                     if code['Fulfilled']=="1":
                         row ={

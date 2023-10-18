@@ -22,14 +22,9 @@ class OrderUpdateConnector(rackroom.base.ConnectorBase):
         ap.add_argument("-p","--path",help="Input Files Path")
         self.opts = vars(ap.parse_args())
 
-        shopify.ShopifyResource.set_site(
-            "https://%s:%s@%s.myshopify.com/admin" % 
-            (
-                self.config("SHOPIFY_KEY"),
-                self.config("SHOPIFY_SECRET"),
-                self.config("SHOPIFY_SITE")
-            )    
-        )
+        session = shopify.Session(f"{self.config('SHOPIFY_SITE')}.myshopify.com/admin","2023-04",self.config("SHOPIFY_SECRET"))
+        shopify.ShopifyResource.activate_session(session)
+        
         self.filename = self.tmpfile("Orders-Update","csv")
         self.files = []
     def statefile(self):
