@@ -95,6 +95,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
                 xml+=f"""
     <order>
         <code>{order.id}</code>
+        <number>{order.name.replace("#","")}</number>
         <creation-date>{order.created_at}</creation-date>
         <meta-status>
             <value>created</value>
