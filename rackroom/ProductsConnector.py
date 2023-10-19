@@ -140,6 +140,7 @@ class ProductsConnector(rackroom.ConnectorBase):
                             product["inventory"] = self.inventory[size['upc']]
                         else:
                             product["inventory"] = ""
+                            
                         row = {
                             "Handle":self.map_handle(product),
                             "Command":"MERGE",
@@ -151,8 +152,8 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Tags":",".join([
                                 f"Gender: {product['gender'].capitalize()}",
                                 f"ProductId: {product['sku']}",
-                                f"ProductCategory: {self.categories[product['category'][0]]['name']}",
-                                f"GenderProductCategory: {product['gender'].capitalize()} {self.categories[product['category'][0]]['name']}",
+                                f"ProductCategory: {self.categories[product['category'][0]]['name'] if len(product['category'][0])>0 else ''}",
+                                f"GenderProductCategory: {product['gender'].capitalize()} {self.categories[product['category'][0]]['name'] if len(product['category'][0])>0 else ''}",
                                 f"cv:{self.map_handle(product)}",
                                 f"WebSkuGroup:{product['base']['name'].title()}"
                             ]),
