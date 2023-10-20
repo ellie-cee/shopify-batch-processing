@@ -66,6 +66,7 @@ class ProductsConnector(rackroom.ConnectorBase):
         
         self.files = []
         self.inventory = {}
+        self.product_desc = {}
         try:
             for file in os.scandir(self.opts["path"]):
                 if file.is_file() and not "done" in file.name:
