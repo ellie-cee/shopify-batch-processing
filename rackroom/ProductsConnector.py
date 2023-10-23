@@ -200,11 +200,10 @@ class ProductsConnector(rackroom.ConnectorBase):
         self.sftp_put(self.filename,"to_Shopify/Products-ImpUp.csv")
         return self
     def cleanup(self):
-        def cleanup(self):
         if self.config("purge")=="yes":
             for file in self.files:
                 os.remove(file.path)
-            os.remove(self.filename)
+           
         return self
     def map_images(self,product):
         return "; ".join(
