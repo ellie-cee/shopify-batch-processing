@@ -76,24 +76,34 @@ class ProductsConnector(rackroom.ConnectorBase):
                             self.products = self.read_file(file,"baseProduct")
                         case "04":
                             self.brands = self.read_file(file,"id")
+                            self.files.append(file)
                         case "11":
                             self.base_products = self.read_file(file,"baseProduct")
+                            self.files.append(file)
                         case "03":
                             self.colors = self.read_file(file,"id")
+                            self.files.append(file)
                         case "13":
                             self.sizes = self.read_file(file,"sku",True)
+                            self.files.append(file)
                         case "14":
                             self.prices = self.read_file(file,"sku")
+                            self.files.append(file)
                         case "02":
                             self.color_families = self.read_file(file,"id")
+                            self.files.append(file)
                         case "01":
                             self.categories = self.read_file(file,"categoryId")
+                            self.files.append(file)
                         case "24":
                            self.read_inventory(file)
+                           self.files.append(file)
                         case "25":
                             self.read_inventory(file)
+                            self.files.append(file)
                     if file.name.startswith("product_desc"):
                         self.product_desc = {x['product_sku']:x['product_description'] for x in json.load(open(file.path))}
+                        self.files.append(file)
 
                     
                     
@@ -190,6 +200,11 @@ class ProductsConnector(rackroom.ConnectorBase):
         self.sftp_put(self.filename,"to_Shopify/Products-ImpUp.csv")
         return self
     def cleanup(self):
+        def cleanup(self):
+        if self.config("purge")=="yes":
+            for file in self.files:
+                os.remove(file.path)
+            os.remove(self.filename)
         return self
     def map_images(self,product):
         return "; ".join(
