@@ -26,7 +26,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         self.files = []
         self.upc_map = {}
         for file in os.scandir(self.opts["path"]):
-            if file.is_file() and file.name.startswith("order_updates"):
+            if file.is_file() and "storestock" in file.name and not "done" in file.name:
                 self.files.append(file)
                 reader = csv.reader(open(file.path),quotechar='"',delimiter=',')
                 next(reader)
@@ -35,6 +35,9 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         if len(self.files)<1:
             
             self.exit("No files to process.")
+        else:
+          self.upc_map = self.get_matrixify_products(self.config("PRODUCTS_FILE"))
+
         return self
 
     def statefile(self):
