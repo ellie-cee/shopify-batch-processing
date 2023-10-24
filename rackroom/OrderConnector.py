@@ -143,8 +143,10 @@ class OrderConnector(rackroom.base.ConnectorBase):
         <voucher-entries/>
     </order>
             """
-                order.attributes["tags"] = ",".join(list(filter(lambda x: x!=self.config("EXPORT_TAG"),order.tags.split(","))))
-                order.save()
+                print(order.tags)
+
+                order.attributes["tags"] = ",".join(list(filter(lambda x: x.strip()!="EXPORT_ERP",order.tags.split(","))))
+                order.attributes["tags"] = order.attributes["tags"].replace("EXPORT_ERP","")
                 xml+="""
 </orders>"""
                 filename = f'{self.opts["path"]}/Order.{order.id}.xml'

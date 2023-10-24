@@ -26,7 +26,7 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         self.files = []
         self.upc_map = {}
         for file in os.scandir(self.opts["path"]):
-            if file.is_file() and "storestock" in file.name and not "done" in file.name:
+            if file.is_file() and "storestock" in file.name and not "done" in file.name and not "expedited" in file.name:
                 self.files.append(file)
                 reader = csv.reader(open(file.path),quotechar='"',delimiter=',')
                 next(reader)
