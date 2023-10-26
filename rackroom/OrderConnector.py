@@ -276,56 +276,65 @@ class OrderConnector(rackroom.base.ConnectorBase):
     def render_transactions_cc(self,order):
         xml=""
         transactions = self.fetch_transactions(order.id)
-        if transactions:
-            transaction = transactions[-1]
-            xml+=f"""
-                        <shopify>
-                            <merchant-id>rackroom</merchant-id>
-                            <request-id>{transaction.receipt.charges.data[0].id}</request-id>
-                            <requestToken>{transaction.receipt.charges.data[0].payment_intent}</requestToken>
-                            <subscription-id>{transaction.receipt.charges.data[0].metadata.order_id}</subscription-id>
-                            <transaction-type>{transaction.kind}</transaction-type>
-                            <decision>{transaction.status}</decision>
-                            <reason-code>100</reason-code>
-                            <authorization-code>08095D</authorization-code>
-                            <authorized-date-time>{transaction.processed_at}</authorized-date-time>
-                            <avs-matching-code>{transaction.payment_details.avs_result_code}</avs-matching-code>
-                            <order-amount>{transaction.receipt.charges.data[0].amount/100}</order-amount>
-                            <request-amount>{transaction.receipt.charges.data[0].amount/100}</request-amount>
-                            <authorized-amount>{self.authorized_amount(transaction)}</authorized-amount>
-                            <currency>
-                                <currency-code>{transaction.currency}</currency-code>
-                            </currency>
-                            <mask-cc-number>XXXX XXXX XXXX {transaction.payment_details.credit_card_number.split(" ")[-1]}</mask-cc-number>
-                """
-            try:
-                            xml+=f"""
-                            <card-expiration-month>{transaction.receipt.charges.data[0].payment_method_details.card.exp_month}</card-expiration-month>
-                            <card-expiration-year>{transaction.receipt.charges.data[0].payment_method_details.card.exp_year}</card-expiration-year>
-                            """
-            except:
-                            xml+="""
-                            <card-expiration-month></card-expiration-month>
-                            <card-expiration-year></card-expiration-year>
-                            """        
-            
-            xml+=f"""        <card-type>{transaction.payment_details.credit_card_company}</card-type>
-                            <billing-address>
-                                <email>{order.customer.email}</email>
-                                <phone/>
-                                <checked>true</checked>
-                                <first-name>{order.billing_address.first_name}</first-name>
-                                <last-name>{order.billing_address.last_name}</last-name>
-                                <street1>{order.billing_address.address1}</street1>
-                                <street2>{order.billing_address.address2}</street2>
-                                <city>{order.billing_address.city}</city>
-                                <postal-code>{self.zip(order.billing_address)}</postal-code>
-                                <postal-code-plus-4>{self.zip4(order.billing_address)}</postal-code-plus-4>
-                                <state>{order.billing_address.province_code}</state>
-                                <country-code>{order.billing_address.country_code}</country-code>
-                            </billing-address>
-                        </shopify>
-                """
+        if not transactions:
+            return xml
+
+        transaction = transactions[-1]
+
+        charges = transaction.receipt.charges if hasattr(transaction.receipt, 'charges') else None
+        if not charges:
+            self.warning(f'Did NOT find charges for Order # {order.id}. '
+                         'Will NOT be including its transactions in the exported XML')
+            return xml
+
+        xml+=f"""
+                    <shopify>
+                        <merchant-id>rackroom</merchant-id>
+                        <request-id>{charges.data[0].id}</request-id>
+                        <requestToken>{charges.data[0].payment_intent}</requestToken>
+                        <subscription-id>{charges.data[0].metadata.order_id}</subscription-id>
+                        <transaction-type>{transaction.kind}</transaction-type>
+                        <decision>{transaction.status}</decision>
+                        <reason-code>100</reason-code>
+                        <authorization-code>08095D</authorization-code>
+                        <authorized-date-time>{transaction.processed_at}</authorized-date-time>
+                        <avs-matching-code>{transaction.payment_details.avs_result_code}</avs-matching-code>
+                        <order-amount>{charges.data[0].amount / 100}</order-amount>
+                        <request-amount>{charges.data[0].amount / 100}</request-amount>
+                        <authorized-amount>{self.authorized_amount(transaction)}</authorized-amount>
+                        <currency>
+                            <currency-code>{transaction.currency}</currency-code>
+                        </currency>
+                        <mask-cc-number>XXXX XXXX XXXX {transaction.payment_details.credit_card_number.split(" ")[-1]}</mask-cc-number>
+            """
+        try:
+                        xml+=f"""
+                        <card-expiration-month>{charges.data[0].payment_method_details.card.exp_month}</card-expiration-month>
+                        <card-expiration-year>{charges.data[0].payment_method_details.card.exp_year}</card-expiration-year>
+                        """
+        except:
+                        xml+="""
+                        <card-expiration-month></card-expiration-month>
+                        <card-expiration-year></card-expiration-year>
+                        """
+
+        xml+=f"""        <card-type>{transaction.payment_details.credit_card_company}</card-type>
+                        <billing-address>
+                            <email>{order.customer.email}</email>
+                            <phone/>
+                            <checked>true</checked>
+                            <first-name>{order.billing_address.first_name}</first-name>
+                            <last-name>{order.billing_address.last_name}</last-name>
+                            <street1>{order.billing_address.address1}</street1>
+                            <street2>{order.billing_address.address2}</street2>
+                            <city>{order.billing_address.city}</city>
+                            <postal-code>{self.zip(order.billing_address)}</postal-code>
+                            <postal-code-plus-4>{self.zip4(order.billing_address)}</postal-code-plus-4>
+                            <state>{order.billing_address.province_code}</state>
+                            <country-code>{order.billing_address.country_code}</country-code>
+                        </billing-address>
+                    </shopify>
+            """
         return xml
     def zip(self,address):
         if address.country_code.startswith("US"):
