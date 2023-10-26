@@ -148,7 +148,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
 
                 order.attributes["tags"] = ",".join(list(filter(lambda x: x.strip()!="EXPORT_ERP",order.tags.split(","))))
                 order.attributes["tags"] = order.attributes["tags"].replace("EXPORT_ERP","")
-                #order.save()
+                order.save()
 
                 xml+="""
 </orders>"""
