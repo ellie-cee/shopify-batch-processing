@@ -82,6 +82,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
         products = {}
         proceed = True
         for order_id in self.orders:
+                print(order_id) 
                 xml = """<?xml version='1.0' encoding='UTF-8'?>
 <orders xmlns="http://www.rackroomshoes.com/xml/hybris/6.0/impex">
         """
@@ -143,10 +144,12 @@ class OrderConnector(rackroom.base.ConnectorBase):
         <voucher-entries/>
     </order>
             """
-                print(order.tags)
+                
 
                 order.attributes["tags"] = ",".join(list(filter(lambda x: x.strip()!="EXPORT_ERP",order.tags.split(","))))
                 order.attributes["tags"] = order.attributes["tags"].replace("EXPORT_ERP","")
+                #order.save()
+
                 xml+="""
 </orders>"""
                 filename = f'{self.opts["path"]}/Order.{order.id}.xml'
@@ -271,11 +274,64 @@ class OrderConnector(rackroom.base.ConnectorBase):
             """
             return xml
     def render_transactions(self,order):
-        return self.render_transactions_cc(order)
-
-    def render_transactions_cc(self,order):
-        xml=""
         transactions = self.fetch_transactions(order.id)
+        if transactions[-1].gateway=="paypal":
+            return self.render_transactions_paypal(order,transactions)
+        else: 
+            return self.render_transactions_cc(order,transactions)
+        
+    def render_transactions_paypal(self,order,transactions):
+        xml=""
+        if transactions:
+            transaction = transactions[-1]
+            xml+=f"""
+                        <paypal>
+                            <merchant-id>rackroom</merchant-id>
+                            <request-id>{transaction.receipt.transaction_id}</request-id>
+                            <requestToken>{transaction.receipt.authorization_id}</requestToken>
+                            <subscription-id>{transaction.order_id}</subscription-id>
+                            <transaction-type>{transaction.kind}</transaction-type>
+                            <decision>{transaction.status}</decision>
+                            <reason-code>100</reason-code>
+                            <authorization-code>08095D</authorization-code>
+                            <authorized-date-time>{transaction.processed_at}</authorized-date-time>
+                            <avs-matching-code></avs-matching-code>
+                            <order-amount>{transaction.receipt.gross_amount}</order-amount>
+                            <request-amount>{transaction.receipt.gross_amount}</request-amount>
+                            <authorized-amount>{transaction.receipt.gross_amount}</authorized-amount>
+                            <currency>
+                                <currency-code>{transaction.currency}</currency-code>
+                            </currency>
+                            <mask-cc-number></mask-cc-number>
+                """
+         
+            xml+="""
+                            <card-expiration-month></card-expiration-month>
+                            <card-expiration-year></card-expiration-year>
+                            """        
+            
+            xml+=f"""        <card-type></card-type>
+                            <billing-address>
+                                <email>{order.customer.email}</email>
+                                <phone/>
+                                <checked>true</checked>
+                                <first-name>{order.billing_address.first_name}</first-name>
+                                <last-name>{order.billing_address.last_name}</last-name>
+                                <street1>{order.billing_address.address1}</street1>
+                                <street2>{order.billing_address.address2}</street2>
+                                <city>{order.billing_address.city}</city>
+                                <postal-code>{self.zip(order.billing_address)}</postal-code>
+                                <postal-code-plus-4>{self.zip4(order.billing_address)}</postal-code-plus-4>
+                                <state>{order.billing_address.province_code}</state>
+                                <country-code>{order.billing_address.country_code}</country-code>
+                            </billing-address>
+                        </paypal>
+                """
+        return xml
+
+    def render_transactions_cc(self,order,transactions):
+        xml=""
+        
         if transactions:
             transaction = transactions[-1]
             xml+=f"""
