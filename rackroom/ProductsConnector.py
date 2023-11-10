@@ -27,7 +27,7 @@ class ProductsConnector(rackroom.ConnectorBase):
             "Tags Command","Tags","Published","Published At","Option1 Name","Option1 Value",
             "Option2 Name","Option2 Value","Variant SKU","Variant Grams","Variant Inventory Tracker",
             "Variant Inventory Policy","Variant Price","Variant Requires Shipping",
-            "Variant Taxable","Variant Barcode [ID]","Variant Inventory Qty","Image Src",
+            "Variant Taxable","Variant Barcode [ID]","Image Src",
             "Status",
             "Metafield: custom.product_type [single_line_text_field]",
             "Metafield: custom.product_category [single_line_text_field]",
@@ -95,12 +95,12 @@ class ProductsConnector(rackroom.ConnectorBase):
                         case "01":
                             self.categories = self.read_file(file,"categoryId")
                             self.files.append(file)
-                        case "24":
-                           self.read_inventory(file)
-                           self.files.append(file)
-                        case "25":
-                            self.read_inventory(file)
-                            self.files.append(file)
+#                        case "24":
+#                           self.read_inventory(file)
+#                           self.files.append(file)
+#                        case "25":
+#                           self.read_inventory(file)
+#                           self.files.append(file)
                     if file.name.startswith("product_desc"):
                         self.product_desc = {x['product_sku']:x['product_description'] for x in json.load(open(file.path))}
                         self.files.append(file)
@@ -183,7 +183,7 @@ class ProductsConnector(rackroom.ConnectorBase):
                             "Variant Barcode [ID]":size['upc'],
                             "Image Src":self.map_images(product),
                             "Status":"active",
-                            "Variant Inventory Qty":product['inventory'],
+                            #"Variant Inventory Qty":product['inventory'],
                             "Metafield: custom.product_type [single_line_text_field]":", ".join(product['webcats']['cat']),
                             "Metafield: custom.product_category [single_line_text_field]":", ".join(product['webcats']['styles']),
                             "Metafield: custom.product_subcategory [single_line_text_field]":", ".join(product['webcats']['features']),

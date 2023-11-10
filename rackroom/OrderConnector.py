@@ -53,27 +53,7 @@ class OrderConnector(rackroom.base.ConnectorBase):
          
         self.info(f"Running {self.statefile()} extracted {len(self.orders)} orders")
         return self
-    def extract_api(self):
-        super().extract()
-        self.orders = []
-        proceed = True
-
-        dt = parsedate(self.state.get("lastrun"))
-        orders = shopify.Order.find(created_at_min=self.state.get("lastrun"))
-        while proceed:
-            for order in orders:
-                odt = parsedate(order.created_at)
-                if (odt>=dt):
-                    self.orders.append(order)
-
-            if orders.has_next_page():
-                orders = orders.next_page()
-            else:
-                proceed = False
-        if len(self.orders)<1:
-            self.exit("No orders. Exiting")
-        self.info(f"Running {self.statefile()} extracted {len(self.orders)} orders")
-        return self
+    
     def transform(self):
         super().transform()
         

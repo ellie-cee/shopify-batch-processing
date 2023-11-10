@@ -44,7 +44,10 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         return "inventory"
     
     def fields(self):
-        return ["ID","Variant ID","Command","Variant Command","Variant Barcode","Inventory Available: ROK1","Inventory Available: ZAP2"]
+        fields = ["ID","Variant ID","Command","Variant Command","Variant Barcode"]
+        for store in self.config_dict['inventory']['stores']:
+            fields.append(f"Inventory Available: {store}")
+        return fields
     def map_to_location(self,store_number):
         for pattern in self.config_dict['inventory']['storemap'].keys():
             if re.search(pattern,store_number):
@@ -63,8 +66,6 @@ class InventoryConnector(rackroom.base.ConnectorBase):
                     "Command":"Merge",
                     "Variant Command":"Merge",
                     "Variant Barcode":line[1],
-                    "Inventory Available: ROK1":"",
-                    "Inventory Available: ZAP2":""
                 }
                 row[f"Inventory Available: {self.map_to_location(line[0])}"] = line[2]
                 writer.writerow(row)
@@ -79,5 +80,5 @@ class InventoryConnector(rackroom.base.ConnectorBase):
         for file in self.files:
             if self.config("purge")=="yes":
                 os.remove(file.path)
-        #os.remove(self.filename)
+        os.remove(self.filename)
     

@@ -24,14 +24,7 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         session = shopify.Session(f"{self.config('SHOPIFY_SITE')}.myshopify.com/admin","2023-04",self.config("SHOPIFY_SECRET"))
         shopify.ShopifyResource.activate_session(session)
 
-        #shopify.ShopifyResource.set_site(
-         #   "https://%s:%s@%s.myshopify.com/admin/2023-10/" % 
-          ##  (
-            #    self.config("SHOPIFY_KEY"),
-             #   self.config("SHOPIFY_SECRET"),
-              #  self.config("SHOPIFY_SITE")
-            #)    
-        #)
+        
         self.filename = self.tmpfile("Order-Shipping","csv")
 
     def statefile(self):
@@ -54,7 +47,8 @@ class FulfillmentConnector(rackroom.base.ConnectorBase):
         processed = {}
         try:
             for file in os.scandir(self.opts["path"]):
-                if file.is_file() and re.search(self.config("fulfillment_file_name"),file.name):
+                
+                if file.is_file() and file.name.startswith("OrderFulfillment"):
                     
                     self.files.append(file)
                     reader = csv.DictReader(open(file.path),quotechar='"',delimiter=',')
